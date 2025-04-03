@@ -27,13 +27,9 @@ def on_button_click(index):
                 print(f"Salvato in griglia[{i}]")
                 break
     elif 0 <= index < 10:
-        if isTaken[index] == 0:
-            griglia[index] = [row[:] for row in riceve]
-            isTaken[index] = 1
-            print(f"Salvato in griglia[{index}]")
-        else:
-            isTaken[index] += 1
-            OpenNewWindow(index)
+        isTaken[index] += 1
+        griglia[index] = GetNewMatrix(riceve, griglia[index], index)
+        OpenNewWindow(index)
 
 
 def OpenNewWindow(index):
@@ -61,9 +57,7 @@ def fillGrid(Cv, index):
             x2 = x1 + CELL_SIZE
             y2 = y1 + CELL_SIZE
 
-            newMatrix = GetNewMatrix(riceve, griglia[index], index)
-
-            colore_rgba = (int(newMatrix[i][j] * 255), 0, 0, 1)
+            colore_rgba = (int(griglia[index][i][j] * 255), 0, 0, 1)
 
             Cv.create_rectangle(x1, y1, x2, y2, fill=rgba_to_hex(colore_rgba))
 
@@ -79,8 +73,8 @@ def GetNewMatrix(m1, m2, index):
 
     for i in range(GRID_SIZE):
         for j in range(GRID_SIZE):
-            #  newMatrix[i][j] = (m1[i][j] + m2[i][j]) / 2
             newMatrix[i][j] = (m1[i][j] + m2[i][j] * (isTaken[index] - 1)) / isTaken[index]
+
     return newMatrix
 
 

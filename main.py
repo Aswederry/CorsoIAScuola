@@ -212,7 +212,7 @@ class MainWindow(QMainWindow):
         # Pulisci la griglia di disegno principale dopo l'elaborazione
         self.drawing_grid.ClearGrid()
 
-    # --- Funzioni di Supporto (adattate dall'originale) ---
+    # --- Funzioni di Supporto ---
     def _CalculateNewMatrix(self, m1, m2, index):
         """Calcola una nuova matrice combinando m1 e m2 (media)."""
         newMatrix = [[0.0 for _ in range(gridSize)] for _ in range(gridSize)]
@@ -229,7 +229,6 @@ class MainWindow(QMainWindow):
             for j in range(gridSize):
                 # Media ponderata: (media_esistente * (n-1) + nuovo_valore) / n
                 newMatrix[i][j] = (m2[i][j] * prev_weight) + (m1[i][j] * new_weight)
-                # Limita i valori per sicurezza, sebbene la media dovrebbe mantenerli nell'intervallo
                 newMatrix[i][j] = max(0.0, min(1.0, newMatrix[i][j]))
         return newMatrix
 

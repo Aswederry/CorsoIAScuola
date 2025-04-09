@@ -1,150 +1,260 @@
-import tkinter as tk
+import sys
+from PySide6.QtWidgets import (
+    QApplication, QWidget, QPushButton, QLabel, QMainWindow
+)
+from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QMouseEvent, QPaintEvent
+from PySide6.QtCore import Qt, QPoint, QRect, QSize
+import functools
 
-WINDOW_SIZE = 600
-GRID_SIZE = 32
-CELL_SIZE = 15
+# --- Costanti ---
+gridSize = 32
+cellSize = 15
+mainGridPixelSize = gridSize * cellSize
+# Costanti per il layout della finestra
+mainGridX = 10
+mainGridY = 10
+buttonAreaY = mainGridY + mainGridPixelSize + 20
+labelAreaY1 = buttonAreaY + 50
+labelAreaY2 = buttonAreaY + 70
+rightPanelX = mainGridX + mainGridPixelSize + 20
+weightGridCellSize = 3
+weightGridPixelSize = gridSize * weightGridCellSize
+weightGridSpacing = 15
+windowWidth = rightPanelX + 2 * (weightGridPixelSize + weightGridSpacing + 100)
+windowHeight = mainGridY + mainGridPixelSize + 120
 
-riceve = [[0 for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
-griglia = [[[0 for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)] for _ in range(10)]
+# --- Dati Globali ---
+# 'riceve' contiene i dati della griglia attualmente disegnata
+riceve = [[0 for _ in range(gridSize)] for _ in range(gridSize)]
+# 'griglia' contiene le matrici dei pesi appresi per ogni cifra (0-9)
+griglia = [[[0.0 for _ in range(gridSize)] for _ in range(gridSize)] for _ in range(10)]
+# 'isTaken' conta quante volte ogni cifra è stata cliccata
 isTaken = [0 for _ in range(10)]
-
-root = None
-canvas = None
-drawing = False
+# 'sums' memorizza una somma calcolata relativa al riconoscimento
+sums = [0.0 for _ in range(10)]
 
 
-def create_main_window():
-    """Crea la finestra principale con la griglia e i bottoni."""
-    global root, canvas
-    root = tk.Tk()
-    root.title("Griglia 32x32")
+# --- Widget di Disegno per la Griglia Principale ---
+class DrawingGrid(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(mainGridPixelSize, mainGridPixelSize)
+        self.drawing = False
+        self.setAutoFillBackground(True)
+        p = self.palette()
+        p.setColor(self.backgroundRole(), Qt.white)
+        self.setPalette(p)
 
-    # Creazione del canvas
-    canvas = tk.Canvas(root, width=WINDOW_SIZE, height=WINDOW_SIZE, bg="white")
-    canvas.pack()
+    def paintEvent(self, event: QPaintEvent):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, False)
 
-    # Creazione dei bottoni
-    tk.Button(root, text="Inserisci", command=lambda: on_button_click(-1)).place(x=500, y=20, width=90, height=40)
-    tk.Button(root, text="Cancella", command=lambda: on_button_click(10)).place(x=500, y=80, width=90, height=40)
-    for i in range(10):
-        tk.Button(root, text=str(i), command=lambda x=i: on_button_click(x)).place(x=8 + i * 48, y=500, width=40,
-                                                                                   height=40)
+        # Disegna le celle riempite
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(Qt.black)
+        for r in range(gridSize):
+            for c in range(gridSize):
+                if riceve[r][c] == 1:
+                    rect = QRect(c * cellSize, r * cellSize, cellSize, cellSize)
+                    painter.fillRect(rect, Qt.black)
 
-    # Creazione delle linee della griglia principale
-    create_grid_lines(canvas, "black")
+        # Disegna le linee della griglia
+        painter.setPen(QPen(Qt.lightGray, 1))  # Linee della griglia più chiare
+        for i in range(gridSize + 1):
+            x = i * cellSize
+            y = i * cellSize
+            painter.drawLine(x, 0, x, mainGridPixelSize)  # Verticale
+            painter.drawLine(0, y, mainGridPixelSize, y)  # Orizzontale
 
-    # Binding degli eventi
-    root.bind("<Button-1>", on_button_press)
-    root.bind("<ButtonRelease-1>", on_button_release)
-    root.bind("<Motion>", on_move)
-    root.resizable(False, False)
+    def mousePressEvent(self, event: QMouseEvent):
+        if event.button() == Qt.LeftButton:
+            self.drawing = True
+            self._UpdateCell(event.position().toPoint())
 
+    def mouseMoveEvent(self, event: QMouseEvent):
+        if self.drawing and (event.buttons() & Qt.LeftButton):
+            self._UpdateCell(event.position().toPoint())
 
-def create_grid_lines(canvas, color="black"):
-    """Crea le linee della griglia su un canvas con un colore specificato."""
-    for i in range(GRID_SIZE):
-        x = i * CELL_SIZE
-        y = i * CELL_SIZE
-        canvas.create_line(x, 0, x, WINDOW_SIZE - 120, fill=color)
-        canvas.create_line(0, y, WINDOW_SIZE - 120, y, fill=color)
-    canvas.create_line(480, 0, 480, WINDOW_SIZE - 120, fill=color)
-    canvas.create_line(0, 480, WINDOW_SIZE - 120, 480, fill=color)
+    def mouseReleaseEvent(self, event: QMouseEvent):
+        if event.button() == Qt.LeftButton:
+            self.drawing = False
 
+    def _UpdateCell(self, pos: QPoint):
+        c = pos.x() // cellSize
+        r = pos.y() // cellSize
+        if 0 <= r < gridSize and 0 <= c < gridSize:
+            if riceve[r][c] == 0:  # Aggiorna solo se cambiato per evitare di ridisegnare (così non lagga)
+                riceve[r][c] = 1
+                self.update()
 
-def fillGrid(Cv, matrix):
-    """Riempie la griglia sul canvas Cv usando la matrice specificata."""
-    for i in range(GRID_SIZE):
-        for j in range(GRID_SIZE):
-            x1 = j * CELL_SIZE
-            y1 = i * CELL_SIZE
-            x2 = x1 + CELL_SIZE
-            y2 = y1 + CELL_SIZE
-            colore_rgba = (int(matrix[i][j] * 255), 0, 0, 1)
-            Cv.create_rectangle(x1, y1, x2, y2, fill=rgba_to_hex(colore_rgba))
-
-
-def rgba_to_hex(rgba):
-    """Converte un colore RGBA in formato esadecimale."""
-    r, g, b, a = rgba
-    hex_color = f"#{r:02x}{g:02x}{b:02x}"
-    return hex_color
-
-
-def OpenNewWindow(index):
-    """Apre una nuova finestra e mostra la griglia salvata all'indice specificato."""
-    newWindow = tk.Toplevel()
-    newWindow.title(f"Griglia {index}")
-    newCanvas = tk.Canvas(newWindow, width=WINDOW_SIZE - 120, height=WINDOW_SIZE - 120, bg="white")
-    newCanvas.pack()
-    create_grid_lines(newCanvas, "white")
-    fillGrid(newCanvas, griglia[index])
+    def ClearGrid(self):
+        global riceve
+        changed = False
+        for r in range(gridSize):
+            for c in range(gridSize):
+                if riceve[r][c] != 0:
+                    riceve[r][c] = 0
+                    changed = True
+        if changed:
+            self.update()
 
 
-def on_button_click(index):
-    """Gestisce il click sui bottoni numerati, Inserisci e Cancella."""
-    if index == 10:  # Bottone Cancella
-        cancella()
-    elif index == -1:  # Bottone Inserisci
+# --- Widget per visualizzare una singola Griglia dei Pesi appresa ---
+class WeightGridDisplay(QWidget):
+    def __init__(self, index, parent=None):
+        super().__init__(parent)
+        self.index = index
+        self.setFixedSize(weightGridPixelSize, weightGridPixelSize)
+        self.setAutoFillBackground(True)
+        p = self.palette()
+        p.setColor(self.backgroundRole(), Qt.white)
+        self.setPalette(p)
+
+    def paintEvent(self, event: QPaintEvent):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, False)
+        painter.setPen(Qt.NoPen)
+
+        matrix = griglia[self.index]
+        for r in range(gridSize):
+            for c in range(gridSize):
+                # Limita il valore tra 0 e 1 prima di scalarlo a 0-255
+                value = max(0.0, min(1.0, matrix[r][c]))
+                gray = int(value * 255)
+                color = QColor(gray, gray, gray)
+                rect = QRect(c * weightGridCellSize, r * weightGridCellSize,
+                             weightGridCellSize, weightGridCellSize)
+                painter.fillRect(rect, color)
+
+    def UpdateDisplay(self):
+        self.update()
+
+
+# --- Finestra Principale dell'Applicazione ---
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Machine Learning")
+        self.setFixedSize(windowWidth, windowHeight)
+
+        # --- Widget Centrale per contenere tutto ---
+        central_widget = QWidget(self)
+        self.setCentralWidget(central_widget)
+
+        # --- Crea la Griglia di Disegno ---
+        self.drawing_grid = DrawingGrid(central_widget)
+        self.drawing_grid.move(mainGridX, mainGridY)
+
+        # --- Crea i Pulsanti ---
+        self.recognize_button = QPushButton("Riconosci", central_widget)
+        self.recognize_button.setGeometry(rightPanelX, mainGridY + 20, 90, 40)
+        self.recognize_button.clicked.connect(self._HandleRecognize)  # Logica per il pulsante Riconosci
+
+        self.clear_button = QPushButton("Cancella", central_widget)
+        self.clear_button.setGeometry(rightPanelX, mainGridY + 80, 90, 40)
+        self.clear_button.clicked.connect(self._HandleClear)  # Logica per il pulsante Cancella
+
+        self.number_buttons = []
         for i in range(10):
-            if isTaken[i] == 0:
-                griglia[i] = [row[:] for row in riceve]
-                isTaken[i] = 1
-                print(f"Salvato in griglia[{i}]")
-                break
-    elif 0 <= index < 10:  # Bottoni numerati
+            button = QPushButton(str(i), central_widget)
+            button.setGeometry(mainGridX + i * 48, buttonAreaY, 40, 40)
+            button.clicked.connect(functools.partial(self._HandleNumberButton, i))
+            self.number_buttons.append(button)
+
+        # --- Crea i label ---
+        self.isTakenLabels = []
+        self.sumLabels = []
+        for i in range(10):
+            # label isTaken
+            label_taken = QLabel("0", central_widget)
+            label_taken.setGeometry(mainGridX + i * 48 + 10, labelAreaY1, 30, 20)
+            label_taken.setAlignment(Qt.AlignCenter)
+            self.isTakenLabels.append(label_taken)
+
+            # label Somma
+            label_sum = QLabel("0.0", central_widget)
+            label_sum.setGeometry(mainGridX + i * 48 + 5, labelAreaY2, 40, 20)
+            label_sum.setAlignment(Qt.AlignCenter)
+            self.sumLabels.append(label_sum)
+
+        # --- Crea i Visualizzatori delle Griglie dei Pesi ---
+        self.weight_grid_displays = []
+        for i in range(10):
+            display = WeightGridDisplay(i, central_widget)
+            # Disponi in 2 colonne da 5
+            col = i // 5
+            row = i % 5
+            x_pos = 150 + rightPanelX + col * (weightGridPixelSize + weightGridSpacing)
+            y_pos = 20 + mainGridY + row * (weightGridPixelSize + weightGridSpacing)
+            display.move(x_pos, y_pos)
+            self.weight_grid_displays.append(display)
+
+        self._UpdateNumberInfo()
+
+    # --- Gestori dei Pulsanti ---
+    def _HandleRecognize(self):
+        return  # Per ora non fa niente perchè non so come si fa, prossima lezione lo facciamo
+
+    def _HandleClear(self):
+        self.drawing_grid.ClearGrid()
+
+    def _HandleNumberButton(self, index):
         isTaken[index] += 1
-        griglia[index] = GetNewMatrix(riceve, griglia[index], index)
-        cancella()
-        OpenNewWindow(index)
+        griglia[index] = self._CalculateNewMatrix(riceve, griglia[index], index)
+        sums[index] = self._CalculateSum(index)
+
+        # Aggiorna il visualizzatore della griglia dei pesi corrispondente
+        self.weight_grid_displays[index].UpdateDisplay()
+
+        # Aggiorna le label
+        self._UpdateNumberInfo()
+
+        # Pulisci la griglia di disegno principale dopo l'elaborazione
+        self.drawing_grid.ClearGrid()
+
+    # --- Funzioni di Supporto (adattate dall'originale) ---
+    def _CalculateNewMatrix(self, m1, m2, index):
+        """Calcola una nuova matrice combinando m1 e m2 (media)."""
+        newMatrix = [[0.0 for _ in range(gridSize)] for _ in range(gridSize)]
+        count = isTaken[index]  # Il nuovo conteggio totale
+        if count <= 0:  # Evita la divisione per zero (non dovrebbe accadere con la logica attuale)
+            return m2  # O gestisci l'errore appropriatamente
+
+        # Peso precedente = (conteggio - 1) / conteggio
+        # Peso nuovo campione = 1 / conteggio
+        prev_weight = (count - 1) / count
+        new_weight = 1 / count
+
+        for i in range(gridSize):
+            for j in range(gridSize):
+                # Media ponderata: (media_esistente * (n-1) + nuovo_valore) / n
+                newMatrix[i][j] = (m2[i][j] * prev_weight) + (m1[i][j] * new_weight)
+                # Limita i valori per sicurezza, sebbene la media dovrebbe mantenerli nell'intervallo
+                newMatrix[i][j] = max(0.0, min(1.0, newMatrix[i][j]))
+        return newMatrix
+
+    def _CalculateSum(self, index):
+        """Calcola la somma del prodotto scalare tra 'riceve' e 'griglia[index]'."""
+        current_sum = 0.0
+        weight_matrix = griglia[index]
+        input_matrix = riceve
+
+        for i in range(gridSize):
+            for j in range(gridSize):
+                current_sum += input_matrix[i][j] * weight_matrix[i][j]
+        return current_sum
+
+    def _UpdateNumberInfo(self):
+        """Aggiorna il testo delle label isTaken e sum."""
+        for i in range(10):
+            self.isTakenLabels[i].setText(str(isTaken[i]))
+            # Formatta la somma con poche cifre decimali per leggibilità
+            self.sumLabels[i].setText(f"{sums[i]:.2f}")
 
 
-def GetNewMatrix(m1, m2, index):
-    """Calcola una nuova matrice combinando m1 e m2."""
-    newMatrix = [[0 for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
-    for i in range(GRID_SIZE):
-        for j in range(GRID_SIZE):
-            newMatrix[i][j] = (m1[i][j] + m2[i][j] * (isTaken[index] - 1)) / isTaken[index]
-    return newMatrix
-
-
-def cancella():
-    """Pulisce la griglia principale."""
-    for i in range(GRID_SIZE):
-        for j in range(GRID_SIZE):
-            x1 = j * CELL_SIZE
-            y1 = i * CELL_SIZE
-            x2 = x1 + CELL_SIZE
-            y2 = y1 + CELL_SIZE
-            canvas.create_rectangle(x1, y1, x2, y2, fill="white")
-            riceve[i][j] = 0
-
-
-def on_move(event):
-    """Gestisce il movimento del mouse per disegnare sulla griglia."""
-    global drawing
-    if drawing and event.x < 480 and event.y < 480:
-        col = event.x // CELL_SIZE
-        row = event.y // CELL_SIZE
-        x1 = col * CELL_SIZE
-        y1 = row * CELL_SIZE
-        x2 = x1 + CELL_SIZE
-        y2 = y1 + CELL_SIZE
-        canvas.create_rectangle(x1, y1, x2, y2, fill="red")
-        riceve[row][col] = 1
-
-
-def on_button_press(event):
-    """Inizia a disegnare quando il pulsante del mouse è premuto."""
-    global drawing
-    drawing = True
-
-
-def on_button_release(event):
-    """Ferma il disegno quando il pulsante del mouse è rilasciato."""
-    global drawing
-    drawing = False
-
-
+# --- Esecuzione Principale ---
 if __name__ == "__main__":
-    create_main_window()
-    root.mainloop()
+    app = QApplication(sys.argv)
+    main_window = MainWindow()
+    main_window.show()
+    sys.exit(app.exec())

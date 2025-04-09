@@ -217,8 +217,8 @@ class MainWindow(QMainWindow):
         """Calcola una nuova matrice combinando m1 e m2 (media)."""
         newMatrix = [[0.0 for _ in range(gridSize)] for _ in range(gridSize)]
         count = isTaken[index]  # Il nuovo conteggio totale
-        if count <= 0:  # Evita la divisione per zero (non dovrebbe accadere con la logica attuale)
-            return m2  # O gestisci l'errore appropriatamente
+        if count <= 0:
+            return m2
 
         # Peso precedente = (conteggio - 1) / conteggio
         # Peso nuovo campione = 1 / conteggio

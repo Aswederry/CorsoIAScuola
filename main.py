@@ -16,12 +16,13 @@ mainGridY = 10
 buttonAreaY = mainGridY + mainGridPixelSize + 20
 labelAreaY1 = buttonAreaY + 50
 labelAreaY2 = buttonAreaY + 70
+labelAreaY3 = buttonAreaY + 90
 rightPanelX = mainGridX + mainGridPixelSize + 20
 weightGridCellSize = 3
 weightGridPixelSize = gridSize * weightGridCellSize
 weightGridSpacing = 15
-windowWidth = rightPanelX + 2 * (weightGridPixelSize + weightGridSpacing + 100)
-windowHeight = mainGridY + mainGridPixelSize + 120
+windowWidth = rightPanelX + 2 * (weightGridPixelSize + weightGridSpacing + 80)
+windowHeight = mainGridY + mainGridPixelSize + 140
 
 # --- Dati Globali ---
 # 'riceve' contiene i dati della griglia attualmente disegnata
@@ -164,6 +165,7 @@ class MainWindow(QMainWindow):
         # --- Crea i label ---
         self.isTakenLabels = []
         self.sumLabels = []
+        self.recognitionPercent = []
         for i in range(10):
             # label isTaken
             label_taken = QLabel("0", central_widget)
@@ -176,6 +178,12 @@ class MainWindow(QMainWindow):
             label_sum.setGeometry(mainGridX + i * 48 + 5, labelAreaY2, 40, 20)
             label_sum.setAlignment(Qt.AlignCenter)
             self.sumLabels.append(label_sum)
+
+            # label recognitionPercent
+            label_percent = QLabel("0%", central_widget)
+            label_percent.setGeometry(mainGridX + i * 48 + 5, labelAreaY3, 40, 20)
+            label_percent.setAlignment(Qt.AlignCenter)
+            self.recognitionPercent.append(label_percent)
 
         # --- Crea i Visualizzatori delle Griglie dei Pesi ---
         self.weight_grid_displays = []

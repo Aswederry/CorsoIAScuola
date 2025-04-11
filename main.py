@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QMouseEvent, QPaintEvent
 from PySide6.QtCore import Qt, QPoint, QRect, QSize
 import functools
+import SavingAndLoading as sal
 
 # --- Costanti ---
 gridSize = 32
@@ -24,15 +25,20 @@ weightGridSpacing = 15
 windowWidth = rightPanelX + 2 * (weightGridPixelSize + weightGridSpacing + 80)
 windowHeight = mainGridY + mainGridPixelSize + 140
 
+weightsName = "weights.npy"
+numsName = "nums.npy"
+
 # --- Dati Globali ---
 # 'riceve' contiene i dati della griglia attualmente disegnata
 riceve = [[0 for _ in range(gridSize)] for _ in range(gridSize)]
-# 'griglia' contiene le matrici dei pesi appresi per ogni cifra (0-9)
+# 'griglia' contiene le matrici dei pesi appresi per ogni cifra (0-9), il primo indice è il numero
 griglia = [[[0.0 for _ in range(gridSize)] for _ in range(gridSize)] for _ in range(10)]
 # 'isTaken' conta quante volte ogni cifra è stata cliccata
 isTaken = [0 for _ in range(10)]
 # 'sums' memorizza una somma calcolata relativa al riconoscimento
 sums = [0.0 for _ in range(10)]
+# 'percentuali' è la percentuale di riconoscimento
+percentuali = [0.0 for _ in range(10)]
 
 
 # --- Widget di Disegno per la Griglia Principale ---
@@ -155,6 +161,18 @@ class MainWindow(QMainWindow):
         self.clear_button.setGeometry(rightPanelX, mainGridY + 80, 90, 40)
         self.clear_button.clicked.connect(self._HandleClear)  # Logica per il pulsante Cancella
 
+        self.clear_button = QPushButton("Salva Pesi", central_widget)
+        self.clear_button.setGeometry(rightPanelX, mainGridY + 140, 90, 40)
+        self.clear_button.clicked.connect(self._saveWeightsButton)  # Logica per il pulsante per salvare i pesi
+
+        self.clear_button = QPushButton("Carica Pesi", central_widget)
+        self.clear_button.setGeometry(rightPanelX, mainGridY + 200, 90, 40)
+        self.clear_button.clicked.connect(self._loadWeightsButton)  # Logica per il pulsante per caricare i pesi
+
+        self.clear_button = QPushButton("Cancella Pesi", central_widget)
+        self.clear_button.setGeometry(rightPanelX, mainGridY + 260, 90, 40)
+        self.clear_button.clicked.connect(self._deleteWeightsButton)  # Logica per il pulsante per cancellare i pesi
+
         self.number_buttons = []
         for i in range(10):
             button = QPushButton(str(i), central_widget)
@@ -180,7 +198,7 @@ class MainWindow(QMainWindow):
             self.sumLabels.append(label_sum)
 
             # label recognitionPercent
-            label_percent = QLabel("0%", central_widget)
+            label_percent = QLabel("0.00%", central_widget)
             label_percent.setGeometry(mainGridX + i * 48 + 5, labelAreaY3, 40, 20)
             label_percent.setAlignment(Qt.AlignCenter)
             self.recognitionPercent.append(label_percent)
@@ -201,7 +219,19 @@ class MainWindow(QMainWindow):
 
     # --- Gestori dei Pulsanti ---
     def _HandleRecognize(self):
-        return  # Per ora non fa niente perchè non so come si fa, prossima lezione lo facciamo
+        for i in range(10):
+            contatore = 0
+            percentuali[i] = 0
+            for j in range(gridSize):
+                for k in range(gridSize):
+                    percentuali[i] += riceve[j][k] * griglia[i][j][k]
+                    contatore += riceve[j][k]
+
+            percentuali[i] /= contatore
+            percentuali[i] *= 100
+            self.recognitionPercent[i].setText(f"{percentuali[i]:.2f}%")
+
+        return
 
     def _HandleClear(self):
         self.drawing_grid.ClearGrid()
@@ -257,6 +287,22 @@ class MainWindow(QMainWindow):
             self.isTakenLabels[i].setText(str(isTaken[i]))
             # Formatta la somma con poche cifre decimali per leggibilità
             self.sumLabels[i].setText(f"{sums[i]:.2f}")
+
+    def _loadWeightsButton(self):
+        global griglia, isTaken
+        griglia, isTaken = sal.LoadWeightsAndInserts(weightsName, numsName)
+
+        for i in range(10):
+            self.weight_grid_displays[i].UpdateDisplay()
+
+        self._UpdateNumberInfo()
+
+    def _saveWeightsButton(self):
+        global griglia, isTaken
+        sal.SaveWeightsAndInserts(griglia, isTaken, weightsName, numsName)
+
+    def _deleteWeightsButton(self):
+        sal.DeleteWeights(weightsName)
 
 
 # --- Esecuzione Principale ---

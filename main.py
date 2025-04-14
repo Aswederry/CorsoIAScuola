@@ -6,6 +6,7 @@ from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QMouseEvent, QPaintEve
 from PySide6.QtCore import Qt, QPoint, QRect, QSize
 import functools
 import SavingAndLoading as sal
+from Model import Model
 
 # --- Costanti ---
 gridSize = 32
@@ -27,6 +28,8 @@ windowHeight = mainGridY + mainGridPixelSize + 140
 
 weightsName = "weights.npy"
 numsName = "nums.npy"
+
+model = Model()
 
 # --- Dati Globali ---
 # 'riceve' contiene i dati della griglia attualmente disegnata
@@ -231,6 +234,8 @@ class MainWindow(QMainWindow):
             percentuali[i] *= 100
             self.recognitionPercent[i].setText(f"{percentuali[i]:.2f}%")
 
+        print(f"Output: {model.Predict(riceve)}")
+
         return
 
     def _HandleClear(self):
@@ -249,6 +254,9 @@ class MainWindow(QMainWindow):
 
         # Pulisci la griglia di disegno principale dopo l'elaborazione
         self.drawing_grid.ClearGrid()
+
+        model.Predict(riceve)
+        model.Training(index)
 
     # --- Funzioni di Supporto ---
     def _CalculateNewMatrix(self, m1, m2, index):

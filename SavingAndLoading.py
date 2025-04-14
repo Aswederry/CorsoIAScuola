@@ -11,13 +11,29 @@ def SaveWeightsAndInserts(matrix, inserts, weightsFile, insertsFile):
 
 
 def LoadWeightsAndInserts(weightsFile, numsFile):
-    weightsNP = np.load(weightsFile)
-    numsNP = np.load(numsFile)
+    if os.path.exists(weightsFile):
+        weightsNP = np.load(weightsFile)
+        weights = weightsNP.tolist()
+    else:
+        print("Non esistono i pesi...")
+        return
 
-    weights = weightsNP.tolist()
-    nums = numsNP.tolist()
+    if os.path.exists(numsFile):
+        numsNP = np.load(numsFile)
+        nums = numsNP.tolist()
+    else:
+        print("Non esistono i numeri...")
+        return
+
+
+
+
     return weights, nums
 
 
 def DeleteWeights(file):
-    os.remove(file)
+    if os.path.exists(file):
+        os.remove(file)
+        print("Pesi cancellati")
+    else:
+        print("Non c'è niente da cancellare")

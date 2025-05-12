@@ -1,6 +1,6 @@
 import os
-
 import numpy as np
+
 
 
 def SaveWeightsAndInserts(matrix, inserts, weightsFile, insertsFile):

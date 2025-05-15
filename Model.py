@@ -60,15 +60,15 @@ class Model:
         # --- Inizializzazione pesi e bias con He initialization ---
         # Strato 1 (Input -> Hidden 1)
         self.W1 = np.random.randn(neuronsN, self.input_size_flat) * np.sqrt(2.0 / self.input_size_flat)
-        self.b1 = np.zeros(neuronsN)
+        self.b1 = np.random.randn(neuronsN)
 
         # Strato 2 (Hidden 1 -> Hidden 2)
         self.W2 = np.random.randn(neuronsN, neuronsN) * np.sqrt(2.0 / neuronsN)
-        self.b2 = np.zeros(neuronsN)
+        self.b2 = np.random.randn(neuronsN)
 
         # Strato 3 (Hidden 2 -> Output)
         self.W_out = np.random.randn(outputsN, neuronsN) * np.sqrt(2.0 / neuronsN)
-        self.b_out = np.zeros(outputsN)
+        self.b_out = np.random.randn(outputsN)
 
         # --- Placeholder per valori intermedi ---
         self.input_batch = None

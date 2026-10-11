@@ -1,4 +1,4 @@
-import os
+import os #ciao rato
 import sys
 
 from PySide6.QtWidgets import (

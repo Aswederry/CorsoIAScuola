@@ -1,0 +1,2 @@
+This is a project I did in high school, the objective was to create a neural network from scratch in python that would be able to recognize numbers from 0 to 9.
+This repository contains the scripts used to make the model as well as the weights of the model, the program features a UI in QT6 that allows the user to draw a number in a 10x10 grid and have the model recognize the number, it also allows the creation of a dataset to train the neural network.
